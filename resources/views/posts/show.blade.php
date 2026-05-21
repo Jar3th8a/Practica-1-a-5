@@ -17,7 +17,7 @@
             </a>
             <small>({{ number_format($file->size / 1024, 2) }} KB)</small>
 
-            <form action="{{ route('posts.destroy', $file->id) }}" method="POST" style="display:inline">
+            <form action="{{ route('attachments.destroy', $file) }}" method="POST" style="display:inline">
                 @csrf
                 @method('DELETE')
                 <button type="submit">Eliminar</button>
@@ -27,4 +27,3 @@
 @else
     <p>No hay archivos.</p>
 @endif
-
