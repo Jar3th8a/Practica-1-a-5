@@ -21,8 +21,7 @@ Route::get('/dashboard', function () {
  return Inertia::render('Dashboard');
 })->middleware('role:admin,editor')->name('dashboard');
 });
-Route::post('/posts', [PostController::class, 'store'])->middleware('role:editor');
-Route::delete('/posts/{id}', [PostController::class, 'destroy'])->middleware('role:admin');
+Route::resource('posts', PostController::class)->middleware('auth');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

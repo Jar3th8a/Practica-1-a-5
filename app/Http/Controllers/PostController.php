@@ -3,11 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePostRequest;
-use App\Http\Requests\StorePostWithAttachmentsRequest;
-use Illuminate\Support\Facades\Gate;
-use App\Http\Models\Attachment;
-use App\Services\FileService;
 use App\Models\Post;
+use Illuminate\Http\RedirectResponse;
 
 class PostController extends Controller
 {
@@ -16,7 +13,11 @@ class PostController extends Controller
      */
     public function index()
     {
-        //
+        return response()->json(
+            Post::with(['author', 'category', 'tags', 'comments'])
+                ->latest()
+                ->paginate(10)
+        );
     }
 
     /**
@@ -24,29 +25,36 @@ class PostController extends Controller
      */
     public function create()
     {
-        //
+        return response()->json(['message' => 'Formulario de creacion de post']);
     }
 
     /**
      * Store a newly created resource in storage.
      */
 
-    public function store(StorePostWithAttachmentsRequest $request)
+    public function store(StorePostRequest $request): RedirectResponse
     {
-        $post = auth()->user()->posts()->create($request->validated());
-        if ($request->hasFile('attachments')) {
-            $fileService = new FileService();
-            foreach ($request->file('attachments') as $file) {
-                $fileService->storeAttachment($file, $post->id);
-            }
+        $post = auth()->user()->posts()->create([
+            'title' => $request->title,
+            'content' => $request->content,
+            'category_id' => $request->category_id,
+            'published_at' => $request->published_at,
+        ]);
+
+        if ($request->has('tags')) {
+            $post->tags()->attach($request->tags);
         }
-        return redirect()->route('posts.show', $post);
+
+        return redirect()->route('posts.show', $post)->with('success', 'Post creado exitosamente');
     }
-    public function update(StorePostRequest $request, Post $post)
+
+    public function update(StorePostRequest $request, Post $post): RedirectResponse
     {
-        Gate::authorize('update', $post); // Policy
+        $this->authorize('update', $post); // Policy
+
         $post->update($request->validated());
-        $post->tags()->sync($request->tags);
+        $post->tags()->sync($request->tags ?? []);
+
         return redirect()->route('posts.show', $post)->with('success', 'Post actualizado');
     }
 
@@ -55,7 +63,7 @@ class PostController extends Controller
      */
     public function show(Post $post)
     {
-        //
+        return response()->json($post->load(['author', 'category', 'tags', 'comments']));
     }
 
     /**
@@ -63,18 +71,19 @@ class PostController extends Controller
      */
     public function edit(Post $post)
     {
-        //
+        return response()->json(['message' => 'Formulario de edicion de post', 'post' => $post]);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Attachment $attachment)
+    public function destroy(Post $post): RedirectResponse
     {
-        $this->authorize('delete', $attachment->post);
-        $fileService = new FileService();
-        $fileService->deleteAttachment($attachment);
-        return redirect()->back()->with('success', 'Archivo eliminado');
-    }
+        $this->authorize('delete', $post);
 
+        $post->tags()->detach();
+        $post->delete();
+
+        return redirect()->route('posts.index')->with('success', 'Post eliminado');
+    }
 }
